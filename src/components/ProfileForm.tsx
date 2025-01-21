@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, MinusCircle, Github, Linkedin, FileText, Mail } from 'lucide-react';
+import { PlusCircle, MinusCircle, Github, Linkedin, FileText, Mail, Share2 } from 'lucide-react';
 import type { Profile, CodingProfile, WorkExperience, Project } from '../types';
 import { analyzeProfile, generateResume, generateColdEmail } from '../services/ai';
 
@@ -13,6 +13,8 @@ export default function ProfileForm() {
   const [analysis, setAnalysis] = useState('');
   const [resume, setResume] = useState('');
   const [coldEmail, setColdEmail] = useState('');
+  const [rating, setRating] = useState<number>(0);
+  const [badgeUrl, setBadgeUrl] = useState<string>('');
 
   const addCodingProfile = () => {
     setProfile(prev => ({
@@ -50,11 +52,13 @@ export default function ProfileForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      const analysisResult = await analyzeProfile(profile as Profile);
-      setAnalysis(analysisResult);
+      const result = await analyzeProfile(profile as Profile);
+      setAnalysis(result.text);
+      setRating(result.rating);
+      setBadgeUrl(result.badgeUrl);
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to analyze profile. Please check your OpenAI API key.');
+      alert('Failed to analyze profile. Please check your Cohere API key.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +71,7 @@ export default function ProfileForm() {
       setResume(resumeContent);
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to generate resume. Please check your OpenAI API key.');
+      alert('Failed to generate resume. Please check your Cohere API key.');
     } finally {
       setLoading(false);
     }
@@ -80,9 +84,25 @@ export default function ProfileForm() {
       setColdEmail(emailContent);
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to generate cold email. Please check your OpenAI API key.');
+      alert('Failed to generate cold email. Please check your Cohere API key.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (badgeUrl) {
+      try {
+        await navigator.share({
+          title: 'My Profile Rating',
+          text: `Check out my profile rating: ${rating}/100!`,
+          url: badgeUrl
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        // Fallback for browsers that don't support sharing
+        window.open(badgeUrl, '_blank');
+      }
     }
   };
 
@@ -350,8 +370,30 @@ export default function ProfileForm() {
       </form>
 
       {analysis && (
-        <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-4">Profile Analysis</h3>
+        <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold">Profile Analysis</h3>
+            {rating > 0 && (
+              <div className="flex items-center gap-4">
+                <span className="text-2xl font-bold text-blue-600">{rating}/100</span>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                >
+                  <Share2 className="w-4 h-4" /> Share Badge
+                </button>
+              </div>
+            )}
+          </div>
+          {badgeUrl && (
+            <div className="flex justify-center">
+              <img
+                src={badgeUrl}
+                alt={`Profile Rating: ${rating}/100`}
+                className="w-32 h-32 object-cover rounded-lg shadow-md"
+              />
+            </div>
+          )}
           <div className="prose max-w-none">{analysis}</div>
         </div>
       )}
